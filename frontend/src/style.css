@@ -1,0 +1,2400 @@
+/* =====================================================
+   PRAMANA — Full Cinematic Sequence & Search Overlay
+   ===================================================== */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* ── Stage ─────────────────────────────────────────── */
+.cinematic-stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+}
+
+/* ── Frame base ────────────────────────────────────── */
+.cinematic-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0ms linear;
+    will-change: opacity;
+}
+
+.cinematic-frame.visible {
+    opacity: 1;
+}
+
+/* ── Images — cover fills viewport edge-to-edge with no black bars ─ */
+.cinematic-frame img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+
+/* ── Video ─────────────────────────────────────────── */
+.cinematic-frame video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ── Crossfade helpers ─────────────────────────────── */
+.cinematic-frame.fading-out {
+    transition: opacity var(--fade-duration, 650ms) ease-in-out;
+    opacity: 0;
+}
+
+.cinematic-frame.fading-in {
+    transition: opacity var(--fade-duration, 650ms) ease-in-out;
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .cinematic-frame.fading-out,
+    .cinematic-frame.fading-in {
+        transition-duration: 0ms !important;
+    }
+
+    .cinematic-frame.fading-out {
+        opacity: 0;
+    }
+
+    .cinematic-frame.fading-in {
+        opacity: 1;
+    }
+}
+
+/* ── Mobile anchoring ──────────────────────────────── */
+@media (max-width: 600px) {
+    #frame-image1 img {
+        object-position: center 40%;
+    }
+
+    #frame-image2 img {
+        object-position: center 58%;
+    }
+
+    .cinematic-frame video {
+        object-position: center center;
+    }
+}
+
+/* ╔═══════════════════════════════════════════════════╗
+   ║  SEARCH INTERACTION — INVISIBLE HIT AREAS         ║
+   ╚═══════════════════════════════════════════════════╝ */
+
+.search-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.pramana-input {
+    position: absolute;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    padding: 0 0 0 6px;
+    box-sizing: border-box;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    letter-spacing: 0.01em;
+    color: rgba(255, 252, 238, 0.95);
+    caret-color: rgba(212, 175, 55, 1);
+    pointer-events: all;
+    cursor: text;
+}
+
+.pramana-input::placeholder {
+    color: rgba(200, 185, 150, 0.65);
+    font-style: italic;
+}
+
+.pramana-input:not(:placeholder-shown) {
+    font-style: normal;
+}
+
+.pramana-submit {
+    position: absolute;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    pointer-events: all;
+}
+
+@keyframes input-pulse {
+    0% {
+        background: transparent;
+    }
+
+    30% {
+        background: rgba(212, 175, 55, 0.12);
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+.pramana-input.pulse {
+    animation: input-pulse 0.55s ease forwards;
+}
+
+/* ── Processing Sequence Styles ─────────────────────── */
+.cinematic-processing {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 600ms ease;
+    z-index: 3;
+}
+
+.processing-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity var(--fade-duration, 600ms) ease-in-out;
+}
+
+.processing-status {
+    position: absolute;
+    left: 5%;
+    bottom: 8%;
+    color: #f0f0f0;
+    font-family: 'Inter', sans-serif;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+.processing-status .primary {
+    font-size: 1.6rem;
+}
+
+.processing-status .secondary {
+    font-size: 1rem;
+    opacity: 0.85;
+}
+
+.pramana-submit.pressed {
+    transform: scale(0.96);
+    transition: transform 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .cinematic-processing,
+    .processing-frame,
+    .pramana-submit.pressed {
+        transition-duration: 200ms !important;
+        transform: none !important;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESULTS SCREEN — EXACT MATCH TO CASES OF PRAMANA INTRO
+   ══════════════════════════════════════════════════════════ */
+
+.pramana-results {
+    position: fixed;
+    inset: 0;
+    background: #fbf9f5;
+    color: #0b2545;
+    font-family: 'Inter', sans-serif;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 500ms ease;
+}
+
+.pramana-results.visible {
+    opacity: 1;
+}
+
+.results-wrapper {
+    width: 100%;
+    padding: 1.25rem 2.5rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Top Header ─────────────────────────────────────── */
+.results-header-banner {
+    width: 100%;
+    height: 150px;
+    overflow: hidden;
+    position: relative;
+    padding: 0;
+    margin: 0 0 1.25rem;
+    flex: 0 0 auto;
+}
+
+.results-header-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+}
+
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 0 0 auto;
+}
+
+.chakra-emblem {
+    width: 58px;
+    height: 58px;
+    color: #0b2545;
+}
+
+.brand-text-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-title {
+    font-family: 'Cinzel', 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #0b2545;
+    line-height: 1;
+}
+
+.brand-tagline {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: #0b2545;
+    margin-top: 0.35rem;
+}
+
+.header-dome-center {
+    flex: 0 1 430px;
+    width: 430px;
+    height: 104px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.sc-dome-img {
+    display: block;
+    width: 430px;
+    height: 104px;
+    max-width: 100%;
+    max-height: 104px;
+    object-fit: cover;
+    object-position: center center;
+}
+
+.header-feature-pillars {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex: 0 0 auto;
+}
+
+.feature-pillar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.pillar-icon-svg {
+    width: 32px;
+    height: 32px;
+}
+
+.pillar-text-group {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.pillar-primary {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.pillar-secondary {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Pillar specific color palettes */
+.pillar-judgments .pillar-primary {
+    color: #a33d18;
+}
+
+.pillar-judgments .pillar-secondary {
+    color: #c2582e;
+}
+
+.pillar-citizens .pillar-primary {
+    color: #0f2b4c;
+}
+
+.pillar-citizens .pillar-secondary {
+    color: #234975;
+}
+
+.pillar-knowledge .pillar-primary {
+    color: #166534;
+}
+
+.pillar-knowledge .pillar-secondary {
+    color: #15803d;
+}
+
+/* ── Search Bar Row ─────────────────────────────────── */
+.results-search-container {
+    margin: 0.75rem 0 1.25rem;
+    width: 100%;
+}
+
+.results-search-box {
+    background: #ffffff;
+    border: 1px solid #d4d0c7;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0.5rem 0.4rem 1.25rem;
+    gap: 1rem;
+}
+
+.search-magnifier-icon {
+    width: 22px;
+    height: 22px;
+    color: #0b2545;
+    flex-shrink: 0;
+}
+
+.results-query-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.05rem;
+    color: #0b2545;
+}
+
+.results-search-again-btn {
+    background: #0d2847;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.65rem 1.5rem;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 180ms ease;
+    flex-shrink: 0;
+}
+
+.results-search-again-btn:hover {
+    background: #153c69;
+}
+
+/* ── Heading & Pagination Row ───────────────────────── */
+.results-title-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    gap: 1.5rem;
+}
+
+.results-main-heading {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0b2545;
+    white-space: nowrap;
+}
+
+.results-heading-divider {
+    flex: 1;
+    height: 1px;
+    background: #d8d3c8;
+}
+
+/* ── Main Content: 5 Cards ─────────────────── */
+.results-body-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+/* ── 5 Cards Container ──────────────────────────────── */
+.results-cards-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: auto;
+    column-gap: 1.15rem;
+    row-gap: 1.75rem;
+    align-items: stretch;
+}
+
+.pramana-case-card {
+    grid-column: span 2;
+    min-width: 0;
+}
+
+.pramana-case-card:nth-child(4) {
+    grid-column: 2 / span 2;
+}
+
+/* ── Individual Result Card ─────────────────────────── */
+.pramana-case-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2ddd4;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.pramana-case-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Card 3 (Emerald active card highlight from reference) */
+.pramana-case-card.card-active-theme {
+    border: 2px solid #064e3b;
+    box-shadow: 0 6px 20px rgba(6, 78, 59, 0.12);
+}
+
+/* Top corner badge and bookmark */
+.card-top-header {
+    position: relative;
+    height: 0;
+    z-index: 3;
+}
+
+.card-num-tab {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.35rem 1.25rem 0.35rem 0.75rem;
+    clip-path: polygon(0 0, 100% 0, 78% 100%, 0 100%);
+    border-top-left-radius: 11px;
+}
+
+.card-bookmark-icon {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+}
+
+/* Thumbnail */
+.card-thumbnail-container {
+    width: 100%;
+    height: 110px;
+    overflow: hidden;
+    position: relative;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+}
+
+.card-court-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+    display: block;
+}
+
+/* Card Content Area */
+.card-details-box {
+    padding: 0.9rem 0.9rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    flex: 1;
+    min-height: 310px;
+}
+
+.card-case-id {
+    display: none;
+}
+
+.card-case-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #0b2545;
+    margin-bottom: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+}
+
+.card-court-meta {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-bottom: 0;
+}
+
+.card-divider-line {
+    height: 1px;
+    background: #f0ece5;
+    margin-bottom: 0;
+}
+
+/* 3 Pillars */
+.card-pillars-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+    padding: 0 0.2rem;
+}
+
+.card-pillar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.card-pillar-svg {
+    width: 16px;
+    height: 16px;
+}
+
+.card-pillar-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+/* Verification Badge */
+.card-verification-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0;
+}
+
+.card-verification-container:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
+.card-verification-pill {
+    border-radius: 6px;
+    padding: 0.38rem 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.card-verification-pill.pill-verified {
+    background: #ffedd5;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+}
+
+.card-verification-pill.pill-notes {
+    background: #e6f0fa;
+    border: 1px solid #bfdbfe;
+    color: #0b2545;
+}
+
+.verification-dot {
+    font-size: 0.82rem;
+    line-height: 1;
+    display: inline-block;
+}
+
+.verification-dot.dot-orange {
+    color: #e0531c;
+}
+
+.verification-dot.dot-green {
+    color: #16a34a;
+}
+
+.verification-dot.dot-blue {
+    color: #0284c7;
+}
+
+/* Action Button */
+.card-action-btn {
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    padding: 0.65rem 0;
+    color: #ffffff;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 0;
+    flex: 0 0 auto;
+    transition: opacity 180ms ease, transform 150ms ease;
+}
+
+.card-action-btn:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.card-action-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* Card Theme Specific Color Schemes */
+/* Card 1: Orange/Amber */
+.theme-orange .card-num-tab {
+    background: #e0531c;
+}
+
+.theme-orange .card-bookmark-icon {
+    color: #e0531c;
+}
+
+.theme-orange .card-pillar-svg {
+    color: #e0531c;
+}
+
+.theme-orange .card-pillar-label {
+    color: #e0531c;
+}
+
+.theme-orange .card-action-btn {
+    background: #d95328;
+}
+
+/* Card 2: Blue */
+.theme-blue .card-num-tab {
+    background: #0d5cb6;
+}
+
+.theme-blue .card-bookmark-icon {
+    color: #0d5cb6;
+}
+
+.theme-blue .card-pillar-svg {
+    color: #0d5cb6;
+}
+
+.theme-blue .card-pillar-label {
+    color: #0d5cb6;
+}
+
+.theme-blue .card-action-btn {
+    background: #0d5cb6;
+}
+
+/* Card 3: Emerald */
+.theme-emerald .card-num-tab {
+    background: #064e3b;
+}
+
+.theme-emerald .card-bookmark-icon {
+    color: #064e3b;
+}
+
+.theme-emerald .card-pillar-svg {
+    color: #064e3b;
+}
+
+.theme-emerald .card-pillar-label {
+    color: #064e3b;
+}
+
+.theme-emerald .card-action-btn {
+    background: #064e3b;
+}
+
+/* Card 4: Ochre/Gold */
+.theme-ochre .card-num-tab {
+    background: #b5832a;
+}
+
+.theme-ochre .card-bookmark-icon {
+    color: #b5832a;
+}
+
+.theme-ochre .card-pillar-svg {
+    color: #b5832a;
+}
+
+.theme-ochre .card-pillar-label {
+    color: #b5832a;
+}
+
+.theme-ochre .card-action-btn {
+    background: #b5832a;
+}
+
+/* Card 5: Maroon */
+.theme-maroon .card-num-tab {
+    background: #881337;
+}
+
+.theme-maroon .card-bookmark-icon {
+    color: #881337;
+}
+
+.theme-maroon .card-pillar-svg {
+    color: #881337;
+}
+
+.theme-maroon .card-pillar-label {
+    color: #881337;
+}
+
+.theme-maroon .card-action-btn {
+    background: #881337;
+}
+
+/* ── Search Error Banner ────────────────────────────── */
+.search-error-banner {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #881337;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.9rem 2rem;
+    border-radius: 8px;
+    z-index: 20;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 350ms ease;
+}
+
+.search-error-banner.visible {
+    opacity: 1;
+}
+
+.search-error-banner.out-of-scope-banner {
+    background: #0b2545;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: #ffffff;
+    padding: 1.2rem 2.5rem;
+    max-width: 680px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+}
+
+.oos-badge {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: #d4af37;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+}
+
+.oos-message {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.98rem;
+    font-weight: 500;
+    color: #fbf9f5;
+    line-height: 1.5;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CASE DETAILS SCREEN — PRAMANA AESTHETIC
+   ══════════════════════════════════════════════════════════ */
+
+.pramana-details {
+    position: fixed;
+    inset: 0;
+    background: #fbf9f5;
+    color: #0b2545;
+    font-family: 'Inter', sans-serif;
+    overflow-y: auto;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 500ms ease;
+}
+
+.pramana-details::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 550px;
+    height: 350px;
+    background-image: url('/assets/sc_header_reference.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 0;
+    filter: grayscale(100%) sepia(20%);
+}
+
+.pramana-details.visible {
+    opacity: 1;
+}
+
+.details-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 2rem 5rem;
+}
+
+.details-nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2ddd4;
+}
+
+.details-back-btn {
+    background: #ffffff;
+    border: 1px solid #0d2847;
+    color: #0d2847;
+    border-radius: 6px;
+    padding: 0.55rem 1.25rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 180ms ease;
+}
+
+.details-back-btn:hover {
+    background: #0d2847;
+    color: #ffffff;
+}
+
+.details-brand-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #0b2545;
+}
+
+/* Contextual Case Reference header */
+.details-context-card {
+    background: #ffffff;
+    border: 1px solid #e2ddd4;
+    border-left: 4px solid #064e3b;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.details-context-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #064e3b;
+    margin-bottom: 0.35rem;
+}
+
+.details-context-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0b2545;
+    line-height: 1.4;
+}
+
+/* The 4 core content sections */
+.details-sections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.details-content-card {
+    background: #ffffff;
+    border: 1px solid #e2ddd4;
+    border-radius: 10px;
+    padding: 1.75rem 2rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.details-card-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+}
+
+.details-section-badge-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #0d2847;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.details-section-heading {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: #0b2545;
+}
+
+.details-section-text {
+    font-family: 'Inter', Georgia, serif;
+    font-size: 0.98rem;
+    line-height: 1.8;
+    color: #2c3e50;
+    white-space: pre-line;
+}
+
+.details-error-view {
+    background: #ffffff;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #881337;
+    border-radius: 8px;
+    padding: 2rem;
+    color: #881337;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+
+/* =====================================================
+   PRAMANA FINAL SURGICAL ALIGNMENT FIX
+   Fixed internal card spacing + centered cinematic search input.
+   ===================================================== */
+.pramana-case-card .card-details-box {
+    display: grid;
+    grid-template-rows: auto auto auto 1px auto auto;
+    row-gap: 0.65rem;
+    align-content: start;
+}
+
+.pramana-case-card .card-case-id {
+    display: none;
+}
+
+.pramana-case-card .card-case-title,
+.pramana-case-card .card-court-meta,
+.pramana-case-card .card-divider-line,
+.pramana-case-card .card-pillars-row,
+.pramana-case-card .card-verification-container,
+.pramana-case-card .card-action-btn {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.pramana-case-card .card-case-title {
+    min-height: 2.6em;
+}
+
+.pramana-case-card .card-verification-container {
+    gap: 0.35rem;
+}
+
+.pramana-case-card .card-action-btn {
+    align-self: stretch;
+}
+
+.pramana-input {
+    padding: 0 0 0 6px;
+}
+
+
+@media (max-width: 1100px) {
+    .results-wrapper {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    .header-dome-center {
+        width: 300px;
+        flex-basis: 300px;
+    }
+
+    .sc-dome-img {
+        width: 300px;
+    }
+
+    .header-feature-pillars {
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 800px) {
+    .results-header-banner {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .header-dome-center {
+        order: 3;
+        width: 100%;
+        flex-basis: 100%;
+        height: 90px;
+    }
+
+    .sc-dome-img {
+        width: 100%;
+        height: 90px;
+    }
+
+    .results-cards-container {
+        grid-template-columns: 1fr;
+        row-gap: 1.25rem;
+    }
+
+    .pramana-case-card,
+    .pramana-case-card:nth-child(4) {
+        grid-column: 1;
+    }
+}
+
+
+/* =====================================================
+   PRAMANA — FINAL LOCKED CARD + SEARCH ALIGNMENT
+   ===================================================== */
+.results-header-banner {
+    width: 100%;
+    height: auto;
+    overflow: hidden;
+    position: relative;
+    padding: 0;
+    margin: 0 0 1.25rem;
+    flex: 0 0 auto;
+    line-height: 0;
+}
+
+.results-header-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    object-position: center center;
+}
+
+.results-cards-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: 1.15rem;
+    row-gap: 2.2rem;
+    align-items: start;
+}
+
+.results-cards-container .pramana-case-card {
+    grid-column: span 2;
+    min-width: 0;
+}
+
+.results-cards-container .pramana-case-card:nth-child(4) {
+    grid-column: 2 / span 2;
+}
+
+.results-cards-container .pramana-case-card:nth-child(5) {
+    grid-column: 4 / span 2;
+}
+
+.pramana-case-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: auto;
+}
+
+.card-details-box {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    min-height: 0;
+    padding: 1rem 0.9rem 1rem;
+    gap: 0;
+}
+
+.card-case-id {
+    display: none !important;
+}
+
+/* One deterministic vertical rhythm for every case card. */
+.card-case-title {
+    height: 52px;
+    min-height: 52px;
+    margin: 0 0 14px !important;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.card-court-meta {
+    height: 20px;
+    min-height: 20px;
+    margin: 0 0 16px !important;
+}
+
+.card-divider-line {
+    display: none !important;
+}
+
+.card-pillars-row {
+    height: 50px;
+    min-height: 50px;
+    margin: 0 0 16px !important;
+    padding: 0 0.2rem;
+}
+
+.card-verification-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 16px !important;
+}
+
+.card-verification-pill {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 0.6rem;
+    margin: 0 !important;
+}
+
+.card-action-btn {
+    height: 44px;
+    min-height: 44px;
+    margin: 0 !important;
+    padding: 0;
+    flex: none;
+}
+
+/* The cinematic input sits inside the artwork, not over the magnifier. */
+.pramana-input {
+    padding: 0 0 0 6px !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+    .results-header-banner {
+        margin-bottom: 1rem;
+    }
+
+    .results-cards-container {
+        grid-template-columns: 1fr;
+        row-gap: 1.5rem;
+    }
+
+    .results-cards-container .pramana-case-card,
+    .results-cards-container .pramana-case-card:nth-child(4),
+    .results-cards-container .pramana-case-card:nth-child(5) {
+        grid-column: 1;
+    }
+}
+
+
+/* =====================================================
+   PRAMANA — FINAL REFERENCE-MATCHED SPACING FIX
+   Only: cinematic search text position + result-card rhythm.
+   ===================================================== */
+
+/* 1. Cinematic search input: slightly right and slightly up. */
+.pramana-input {
+    padding-left: 30px !important;
+    transform: translateY(-6px);
+}
+
+/* 2. Results cards: compact, uniform vertical rhythm modeled on the
+      supplied reference card layout. No date, no case ID, no stretching. */
+.results-cards-container {
+    row-gap: 2rem !important;
+    align-items: start !important;
+}
+
+.pramana-case-card {
+    height: auto !important;
+    min-height: 0 !important;
+    align-self: start !important;
+}
+
+.card-thumbnail-container {
+    height: 140px !important;
+    min-height: 140px !important;
+}
+
+.card-details-box {
+    display: grid !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    row-gap: 14px !important;
+    padding: 1rem 0.9rem 1rem !important;
+    min-height: 0 !important;
+    height: auto !important;
+    flex: none !important;
+}
+
+.card-case-title {
+    height: auto !important;
+    min-height: 2.7em !important;
+    max-height: 2.7em !important;
+    margin: 0 !important;
+    line-height: 1.35 !important;
+    -webkit-line-clamp: 2 !important;
+}
+
+.card-court-meta {
+    height: auto !important;
+    min-height: 20px !important;
+    margin: 0 !important;
+}
+
+.card-pillars-row {
+    height: 48px !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+}
+
+.card-verification-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin: 0 !important;
+}
+
+.card-verification-pill {
+    height: 36px !important;
+    min-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 0.6rem !important;
+}
+
+.card-action-btn {
+    height: 44px !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Keep the requested 3 + 2 composition with a deliberate second-row gap. */
+.results-cards-container .pramana-case-card:nth-child(4) {
+    grid-column: 2 / span 2 !important;
+}
+
+.results-cards-container .pramana-case-card:nth-child(5) {
+    grid-column: 4 / span 2 !important;
+}
+
+/* =====================================================
+   PRAMANA — FINAL CARD RHYTHM CORRECTION v2
+   Purpose: make every card's content flow naturally so
+   verification rows and the action button can NEVER overlap.
+   ===================================================== */
+
+/* Cinematic search input: slightly higher than the previous version. */
+.pramana-input {
+    padding-left: 30px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    transform: translateY(-10px) !important;
+}
+
+/* Keep the results header as the supplied exact image. */
+.results-header-banner {
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 0 1.25rem !important;
+    overflow: hidden !important;
+    line-height: 0 !important;
+}
+
+.results-header-image {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+/* 3 + 2 composition with a real row gap. */
+.results-cards-container {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    column-gap: 1.15rem !important;
+    row-gap: 2.4rem !important;
+    align-items: start !important;
+}
+
+.results-cards-container .pramana-case-card {
+    grid-column: span 2 !important;
+    align-self: start !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.results-cards-container .pramana-case-card:nth-child(4) {
+    grid-column: 2 / span 2 !important;
+}
+
+.results-cards-container .pramana-case-card:nth-child(5) {
+    grid-column: 4 / span 2 !important;
+}
+
+/* IMPORTANT: natural vertical flow — no grid rows and no auto spacer. */
+.pramana-case-card .card-details-box {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 1.15rem 0.9rem 1.15rem !important;
+    gap: 0 !important;
+    overflow: visible !important;
+}
+
+/* 1. TITLE — give it enough room for up to 3 lines. */
+.pramana-case-card .card-case-title {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    overflow: hidden !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    max-height: 72px !important;
+    line-height: 1.35 !important;
+    margin: 0 0 16px !important;
+}
+
+/* 2. COURT — fixed position after title. */
+.pramana-case-card .card-court-meta {
+    height: 20px !important;
+    min-height: 20px !important;
+    margin: 0 0 20px !important;
+}
+
+/* 3. PROBLEM / EVIDENCE / DECISION. */
+.pramana-case-card .card-pillars-row {
+    height: 50px !important;
+    min-height: 50px !important;
+    margin: 0 0 20px !important;
+    padding: 0 0.2rem !important;
+}
+
+/* 4 + 5. BOTH verification rows must occupy their own real space. */
+.pramana-case-card .card-verification-container {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 12px !important;
+    margin: 0 0 20px !important;
+    overflow: visible !important;
+}
+
+.pramana-case-card .card-verification-pill {
+    position: static !important;
+    display: flex !important;
+    flex: 0 0 38px !important;
+    width: 100% !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    margin: 0 !important;
+    padding: 0 0.6rem !important;
+    box-sizing: border-box !important;
+}
+
+/* 6. BUTTON comes AFTER verification, never on top of it. */
+.pramana-case-card .card-action-btn {
+    position: static !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 46px !important;
+    width: 100% !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* No date/year or case ID may appear in the card. */
+.pramana-case-card .card-case-id {
+    display: none !important;
+}
+
+@media (max-width: 800px) {
+    .results-cards-container {
+        grid-template-columns: 1fr !important;
+        row-gap: 1.5rem !important;
+    }
+
+    .results-cards-container .pramana-case-card,
+    .results-cards-container .pramana-case-card:nth-child(4),
+    .results-cards-container .pramana-case-card:nth-child(5) {
+        grid-column: 1 !important;
+    }
+}
+
+/* =====================================================
+   PRAMANA — FINAL HARD-LOCK v3
+   Purpose: guarantee vertical flow and prevent any
+   verification/button overlap at all desktop sizes.
+   ===================================================== */
+
+/* Search artwork input: UP, and slightly right. */
+.pramana-input {
+    padding: 0 0 0 30px !important;
+    transform: translateY(-14px) !important;
+}
+
+/* The card itself must grow with its content. */
+.results-cards-container .pramana-case-card {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    align-self: start !important;
+    overflow: hidden !important;
+}
+
+/* Natural vertical flow; nothing is allowed to occupy the same row. */
+.results-cards-container .pramana-case-card .card-details-box {
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex: none !important;
+    overflow: visible !important;
+    padding: 18px 18px 18px !important;
+    gap: 0 !important;
+}
+
+/* TITLE: reserve three complete lines. */
+.results-cards-container .pramana-case-card .card-case-title {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    overflow: hidden !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    max-height: 72px !important;
+    margin: 0 0 16px !important;
+    line-height: 1.35 !important;
+}
+
+/* COURT: its own complete row. */
+.results-cards-container .pramana-case-card .card-court-meta {
+    display: block !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    margin: 0 0 20px !important;
+}
+
+/* PROBLEM / EVIDENCE / DECISION: its own complete row. */
+.results-cards-container .pramana-case-card .card-pillars-row {
+    display: flex !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    margin: 0 0 20px !important;
+    padding: 0 3px !important;
+    flex: 0 0 50px !important;
+}
+
+/* VERIFICATION AREA: explicit vertical block with real space. */
+.results-cards-container .pramana-case-card .card-verification-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 88px !important;
+    margin: 0 0 22px !important;
+    padding: 0 !important;
+    gap: 12px !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+}
+
+/* Each verification badge gets its own non-collapsing row. */
+.results-cards-container .pramana-case-card .card-verification-pill {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    flex: 0 0 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    box-sizing: border-box !important;
+    z-index: 1 !important;
+}
+
+/* BUTTON: always below the entire verification block. */
+.results-cards-container .pramana-case-card .card-action-btn {
+    position: relative !important;
+    inset: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+    flex: 0 0 46px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    z-index: 2 !important;
+}
+
+/* If one verification row is absent, preserve a clean gap before button. */
+.results-cards-container .pramana-case-card .card-verification-container:has(.pill-verified):not(:has(.pill-notes)),
+.results-cards-container .pramana-case-card .card-verification-container:has(.pill-notes):not(:has(.pill-verified)) {
+    min-height: 38px !important;
+}
+
+/* Desktop 3 + 2 layout with a visible row gap. */
+@media (min-width: 801px) {
+    .results-cards-container {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        column-gap: 1.15rem !important;
+        row-gap: 2.5rem !important;
+        align-items: start !important;
+    }
+
+    .results-cards-container .pramana-case-card:nth-child(1),
+    .results-cards-container .pramana-case-card:nth-child(2),
+    .results-cards-container .pramana-case-card:nth-child(3) {
+        grid-column: span 2 !important;
+    }
+
+    .results-cards-container .pramana-case-card:nth-child(4) {
+        grid-column: 2 / span 2 !important;
+    }
+
+    .results-cards-container .pramana-case-card:nth-child(5) {
+        grid-column: 4 / span 2 !important;
+    }
+}
+
+
+/* FINAL MICRO-FIX: only requested heading font + search text clearance. */
+.results-main-heading {
+    font-family: 'Times New Roman', Times, serif !important;
+    font-weight: 600 !important;
+}
+
+.pramana-input {
+    padding-right: 115px !important;
+    padding-left: 10px !important;
+    text-align: left !important;
+    direction: ltr !important;
+}
+
+
+/* FINAL TARGETED FIX: each case card gets its own existing case-theme border color.
+   No other card styling is changed. */
+.results-cards-container .pramana-case-card.theme-orange {
+    border: 2px solid #e0531c !important;
+}
+
+.results-cards-container .pramana-case-card.theme-blue {
+    border: 2px solid #0d5cb6 !important;
+}
+
+.results-cards-container .pramana-case-card.theme-emerald {
+    border: 2px solid #064e3b !important;
+}
+
+.results-cards-container .pramana-case-card.theme-ochre {
+    border: 2px solid #b5832a !important;
+}
+
+.results-cards-container .pramana-case-card.theme-maroon {
+    border: 2px solid #881337 !important;
+}
+/* =====================================================
+   PAGE 9 — JUDGMENT VERIFICATION UI
+   This section is scoped to .p9-details so pages 1–8 remain unchanged.
+   ===================================================== */
+.p9-details{position:fixed;inset:0;z-index:30;overflow-y:auto;background:linear-gradient(180deg,#fbf8f0 0%,#f7f3e9 48%,#f2ecdf 100%);color:#102d55;font-family:'Source Sans 3','Inter',Georgia,serif;opacity:0;transition:opacity .35s ease}.p9-details.visible{opacity:1}.p9-details *{box-sizing:border-box}.p9-details button{font:inherit;cursor:pointer}.p9-details svg{width:16px;height:16px;flex:0 0 auto}.p9-masthead{height:116px;overflow:hidden;background:#fbfaf5;border-bottom:1px solid #ded7c7;box-shadow:0 3px 22px rgb(16 45 85 / 8%)}.p9-masthead img{display:block;width:100%;height:100%;object-fit:cover;object-position:center center}.p9-masthead-actions{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:9px clamp(18px,3vw,46px);border-top:1px solid rgb(184 155 86 / 20%);background:rgb(255 253 247 / 96%)}.p9-back-btn,.p9-action{display:inline-flex;align-items:center;gap:7px;border:0;color:#102d55;font-size:13px;font-weight:650;background:transparent;transition:transform .16s ease,filter .16s ease}.p9-utility-actions{display:flex;align-items:center;gap:12px}.p9-action{padding:8px 11px;border:1px solid;border-radius:8px;color:#fff;box-shadow:0 3px 9px rgb(16 45 85 / 8%)}.p9-action-gold{background:#D96607;border-color:#b85405}.p9-action-blue{background:#2b6fa8;border-color:#235d91}.p9-action-green{background:#187454;border-color:#105b41}.p9-action:hover,.p9-back-btn:hover{filter:saturate(1.22) brightness(1.05);transform:translateY(-1px)}.p9-action:active,.p9-back-btn:active,.p9-library-toggle:active,.p9-filter-row button:active,.p9-statement-status button:active{transform:scale(.95);filter:saturate(1.65) brightness(1.08)}.p9-workspace{display:grid;grid-template-columns:42px minmax(0,1fr) 376px;gap:10px;width:min(100%,1680px);margin:0 auto;padding:12px 12px 80px 0;align-items:start;transition:grid-template-columns .22s cubic-bezier(.23,1,.32,1)}.p9-workspace.p9-library-is-open{grid-template-columns:246px minmax(0,1fr) 376px}.p9-library-sidebar{position:sticky;top:20px;min-height:0;background:transparent}.p9-library-top{display:flex;align-items:center;min-height:48px}.p9-library-toggle{display:grid;place-items:center;width:36px;height:36px;color:#fff;background:#102d55;border:1px solid rgb(255 255 255 / 24%);border-radius:9px;box-shadow:0 5px 12px rgb(16 45 85 / 20%);transition:transform .16s ease,background .16s ease}.p9-library-toggle:hover{background:#0b6545}.p9-library-content{display:none}.p9-library-sidebar.p9-open .p9-library-content{display:block;padding-top:10px}.p9-library-title{display:flex;flex-direction:column;gap:2px;padding:0 8px 13px}.p9-library-title strong{font-family:'Playfair Display',Georgia,serif;font-size:17px}.p9-library-title span{color:#6a7884;font-size:11px}.p9-library-nav{display:grid;gap:6px}.p9-library-item{display:grid;grid-template-columns:1fr 16px;align-items:center;gap:8px;width:100%;padding:11px 8px;text-align:left;border:1px solid transparent;border-radius:10px;color:#40617f;background:transparent}.p9-library-item strong,.p9-library-item small{display:block}.p9-library-item strong{font-size:12px}.p9-library-item small{margin-top:3px;color:#6a7884;font-size:10px}.p9-library-item svg{grid-column:2;grid-row:1 / span 2}.p9-library-item:hover{background:#f4efe3;border-color:#ded7c7;color:#102d55}.p9-library-item.p9-active{color:#fff;background:#102d55;box-shadow:0 8px 18px rgb(16 45 85 / 17%)}.p9-library-item.p9-active small{color:rgb(255 255 255 / 72%)}.p9-library-learn{margin-top:22px;padding:17px 8px;border-top:1px solid #ded7c7}.p9-library-learn p,.p9-review-heading p,.p9-verification-box p,.p9-filter-row>span{margin:0;color:#b89b56;font-size:10px;font-weight:800;letter-spacing:.17em;text-transform:uppercase}.p9-library-learn h3{margin:6px 0 8px;font:650 17px/1.2 'Playfair Display',Georgia,serif}.p9-library-learn span{color:#40617f;font-size:12px;line-height:1.45}.p9-case-heading{padding:4px 2px 20px;border-bottom:1px solid #ded7c7}.p9-case-heading h1{margin:4px 0 4px;font:650 clamp(27px,3vw,39px)/.98 'Playfair Display',Georgia,serif;letter-spacing:-.035em}.p9-case-heading>span{font:600 18px 'Playfair Display',Georgia,serif;color:#40617f}.p9-verification-box{display:flex;align-items:center;justify-content:space-between;gap:26px;margin:20px 0 17px;padding:18px 20px;min-height:104px;border:1px solid rgb(184 155 86 / 45%);border-radius:14px;background:linear-gradient(115deg,#fffdf7,#f7f1df);box-shadow:0 8px 24px rgb(99 75 28 / 6%)}.p9-verification-box h2{margin:6px 0 3px;font:650 21px/1.1 'Playfair Display',Georgia,serif}.p9-verification-box span{color:#40617f;font-size:12px}.p9-score{min-width:152px;text-align:right}.p9-score strong{display:block;color:#0b6545;font:650 32px/1 'Playfair Display',Georgia,serif}.p9-score i{display:block;height:7px;margin-top:8px;overflow:hidden;border-radius:50px;background:#dce4d7}.p9-score i b{display:block;height:100%;border-radius:inherit;background:#12845a}.p9-score small{display:block;margin-top:5px;color:#40617f;font-size:10px}.p9-filter-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-bottom:13px;border-bottom:1px solid #ded7c7}.p9-filter-row>span{margin-right:auto;color:#40617f;letter-spacing:0;font-size:12px}.p9-filter-row button{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #ded7c7;border-radius:99px;background:transparent;color:#40617f;font-size:11px;font-weight:700;transition:transform .16s ease,filter .16s ease}.p9-filter-row button b{display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:#f4efe3;font-size:10px}.p9-filter-row button[data-filter="all"].p9-selected{color:#fff;background:#102d55;border-color:#102d55}.p9-filter-row button[data-filter="verified"].p9-selected{color:#fff;background:#0b6545;border-color:#0b6545}.p9-filter-row button[data-filter="notes"].p9-selected{color:#fff;background:#2169a7;border-color:#2169a7}.p9-filter-row button[data-filter="blocked"].p9-selected{color:#fff;background:#781e25;border-color:#781e25}.p9-statement-list{display:grid;gap:12px;padding-top:15px}.p9-statement{display:grid;grid-template-columns:minmax(0,1fr) 194px;gap:14px;padding:17px;border:1px solid #ded7c7;border-left:4px solid #12845a;border-radius:13px;background:rgb(255 253 247 / 96%);box-shadow:0 8px 20px rgb(16 45 85 / 4%)}.p9-statement.p9-notes{border-left-color:#2169a7}.p9-statement.p9-blocked{border-left-color:#781e25;background:#fffaf6}.p9-statement-copy p{margin:0;color:#102d55;font:16px/1.5 'Playfair Display',Georgia,serif}.p9-statement-status{padding-left:14px;border-left:1px solid #ded7c7}.p9-statement-status strong{display:flex;align-items:center;gap:5px;font-size:12px}.p9-statement-status strong svg{width:14px;height:14px}.p9-statement.p9-verified .p9-statement-status strong{color:#0b6545}.p9-statement.p9-notes .p9-statement-status strong{color:#2169a7}.p9-statement.p9-blocked .p9-statement-status strong{color:#781e25}.p9-statement-status>span{display:block;margin:8px 0 14px;color:#6a7884;font-size:10px;line-height:1.38}.p9-statement-status button,.p9-show-more,.p9-blocked-story button{display:inline-flex;align-items:center;gap:5px;border:1px solid #b9ddc8;border-radius:7px;padding:7px 8px;color:#0b6545;background:#e4f3eb;font-size:10px;font-weight:800}.p9-statement.p9-notes .p9-statement-status button{border-color:#bfd5ea;color:#2169a7;background:#e6f0fb}.p9-statement.p9-blocked .p9-statement-status button{border-color:#e1b4ae;color:#781e25;background:#fae7e4}.p9-show-more{display:flex;margin:16px auto 0;border-color:#ded7c7;border-radius:99px;color:#102d55;background:#fffdf7}.p9-blocked-story{margin-top:28px;padding:20px;border:1px solid #ddb0a8;border-radius:14px;background:linear-gradient(130deg,#fff8f2,#fae9e3)}.p9-blocked-story[hidden],.p9-show-more[hidden]{display:none}.p9-blocked-story>div{display:flex;align-items:flex-start;justify-content:space-between}.p9-blocked-story h2{margin:5px 0 0;color:#781e25;font:650 20px 'Playfair Display',Georgia,serif}.p9-blocked-story>b{display:block;width:max-content;margin:8px 0 10px;padding:5px 8px;border-radius:99px;color:#fff;background:#781e25;font-size:10px}.p9-blocked-story>span{display:block;margin:0 0 13px;color:#784744;font-size:12px}.p9-blocked-story button{border:0;padding:0;color:#781e25;background:transparent}.p9-right-panel{position:sticky;top:20px;min-height:390px;padding:20px;border:1px solid #ded7c7;border-radius:16px;background:rgb(255 253 247 / 94%);box-shadow:0 14px 30px rgb(16 45 85 / 7%)}.p9-review-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:13px;border-bottom:1px solid #ded7c7}.p9-review-heading h2{margin:4px 0 0;font:650 23px/1.05 'Playfair Display',Georgia,serif}.p9-review-heading>svg,.p9-close-compare{display:grid;place-items:center;width:30px;height:30px;padding:6px;border:1px solid #ded7c7;border-radius:8px;color:#40617f;background:#fffdf7}.p9-intro{display:block;margin:15px 0;color:#40617f;font-size:12px;line-height:1.45}.p9-analysis-card{margin-top:16px;padding:16px;border:1px solid #b9ddc8;border-radius:12px;background:#e4f3eb}.p9-analysis-card.p9-notes{border-color:#c0d8ee;background:#e6f0fb}.p9-analysis-card.p9-blocked{border-color:#e1b4ae;background:#fae7e4}.p9-analysis-title{display:flex;justify-content:space-between;gap:10px}.p9-analysis-title h3{margin:5px 0 0;font:650 17px/1.15 'Playfair Display',Georgia,serif}.p9-analysis-title>span{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;color:#0b6545;background:#cae9d7}.p9-analysis-card.p9-blocked .p9-analysis-title>span{color:#781e25;background:#efc3bc}.p9-analysis-card ul{display:grid;gap:8px;margin:15px 0;padding:0;list-style:none}.p9-analysis-card li{display:flex;gap:8px;color:#40617f;font-size:11px;line-height:1.35}.p9-analysis-card li svg{width:14px;height:14px;color:#12845a}.p9-analysis-card.p9-blocked li svg{color:#a72d2d}.p9-analysis-card>strong{display:flex;gap:8px;padding:10px;border:1px solid #b8d8c5;border-radius:8px;color:#0b6545;background:rgb(255 255 255 / 45%);font-size:11px}.p9-analysis-card.p9-blocked>strong{border-color:#dfb0aa;color:#781e25}.p9-evidence-note{display:flex;margin-top:16px;padding:12px;border:1px dashed #ceb986;border-radius:9px;color:#806e41;background:#fbf4df;font-size:11px;line-height:1.35}.p9-comparison-count{display:flex;align-items:center;justify-content:space-between;margin:14px 0 11px;color:#40617f;font-size:10px}.p9-comparison-count b{padding:4px 7px;border-radius:99px;font-size:9px;text-transform:uppercase}.p9-comparison-count b.p9-verified{color:#0b6545;background:#e4f3eb}.p9-comparison-count b.p9-notes{color:#2169a7;background:#e6f0fb}.p9-comparison-count b.p9-blocked{color:#781e25;background:#fae7e4}.p9-claim-box,.p9-source-box{padding:14px;border:1px solid #ded7c7;border-radius:10px}.p9-claim-box{background:#f1f7f0;border-color:#c7ddca}.p9-source-box{margin-top:10px;background:#fbf4df;border-color:#dfcf9d}.p9-claim-box>p,.p9-source-box>p{margin:0;color:#b89b56;font-size:10px;font-weight:800;letter-spacing:.08em}.p9-claim-box>strong{display:block;margin:9px 0 8px;color:#102d55;font:14px/1.35 'Playfair Display',Georgia,serif}.p9-claim-box>span{display:block;color:#0b6545;font-size:10px;line-height:1.35}.p9-source-box blockquote{margin:10px 0 8px;color:#4f4939;font:13px/1.45 'Playfair Display',Georgia,serif}.p9-source-box small{display:block;color:#86754c;font-size:10px;font-weight:800;text-align:center}.p9-comparison-controls{display:flex;justify-content:space-between;padding:12px 0 1px}.p9-comparison-controls button{display:inline-flex;align-items:center;gap:4px;padding:3px 0;border:0;color:#40617f;background:transparent;font-size:10px;font-weight:750}
+@media(max-width:1100px){.p9-workspace,.p9-workspace.p9-library-is-open{grid-template-columns:42px minmax(0,1fr)}.p9-workspace.p9-library-is-open{grid-template-columns:246px minmax(0,1fr)}.p9-right-panel{grid-column:2;position:relative;top:0}}@media(max-width:720px){.p9-masthead{height:126px}.p9-masthead-actions{align-items:flex-start;flex-direction:column;gap:10px}.p9-utility-actions{width:100%;justify-content:space-between;gap:8px}.p9-action{font-size:11px}.p9-workspace,.p9-workspace.p9-library-is-open{display:flex;flex-direction:column;padding:18px 12px 50px}.p9-library-sidebar,.p9-library-sidebar.p9-closed{position:relative;top:0;width:100%}.p9-verification-box{align-items:flex-start;flex-direction:column}.p9-score{width:100%;text-align:left}.p9-statement{grid-template-columns:minmax(0,1fr)}.p9-statement-status{padding:12px 0 0;border-top:1px solid #ded7c7;border-left:0}.p9-filter-row>span{width:100%;margin-right:0}}
+
+/* Page-9 utility feedback */
+.p9-action-green.p9-saved{background:#0b6545;border-color:#074b34;box-shadow:0 0 0 3px rgb(18 132 90 / 18%),0 6px 16px rgb(18 132 90 / 24%)}
+
+/* Page-9 sidebar section views */
+.p9-section-view[hidden]{display:none}
+.p9-section-view{display:block;padding-top:4px}
+.p9-section-heading{padding:4px 2px 20px;border-bottom:1px solid #ded7c7}
+.p9-section-heading p{margin:0;color:#b89b56;font-size:10px;font-weight:800;letter-spacing:.17em}
+.p9-section-heading h1{margin:5px 0 4px;color:#102d55;font:650 clamp(27px,3vw,39px)/.98 'Playfair Display',Georgia,serif;letter-spacing:-.035em}
+.p9-section-heading span{color:#40617f;font:600 18px 'Playfair Display',Georgia,serif}
+.p9-section-card{display:grid;gap:16px;margin-top:20px;padding:22px;border:1px solid #ded7c7;border-radius:14px;background:rgb(255 253 247 / 96%);box-shadow:0 8px 24px rgb(16 45 85 / 5%)}
+.p9-section-card p{margin:0;color:#102d55;font:16px/1.65 'Playfair Display',Georgia,serif}
+@media(max-width:720px){.p9-section-card{padding:16px}.p9-section-card p{font-size:15px}}
+
+/* =====================================================
+   FINAL PRAMANA RESULTS POLISH
+   ===================================================== */
+.results-header-banner {
+    width: calc(100% + 4.5rem) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: auto !important;
+    overflow: hidden !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #fbf9f5 !important;
+    margin-left: -2.25rem !important;
+    margin-right: -2.25rem !important;
+    margin-top: -0.8rem !important;
+    margin-bottom: 0.8rem !important;
+    border-radius: 0 !important;
+}
+
+.results-header-image {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+}
+
+.results-wrapper {
+    padding: 0.8rem 2.25rem 2rem !important;
+}
+
+.results-search-container {
+    margin: 0.5rem 0 0.85rem !important;
+}
+
+.results-title-row {
+    margin-bottom: 0.9rem !important;
+}
+
+.results-cards-container .card-verification-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 0 !important;
+    height: auto !important;
+    gap: 5px !important;
+    margin: 0 0 18px !important;
+    text-align: center !important;
+}
+
+.results-cards-container .card-verification-pill,
+.results-cards-container .card-verification-pill.pill-verified,
+.results-cards-container .card-verification-pill.pill-notes {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-family: 'Outfit', 'Inter', sans-serif !important;
+    font-size: 0.94rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.35 !important;
+    box-sizing: border-box !important;
+}
+
+.results-cards-container .card-verification-pill strong {
+    font-size: 1.24rem !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.01em !important;
+    margin-left: 0.28rem !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.results-cards-container .card-verification-pill.pill-verified {
+    background: #ffedd5 !important;
+    border: 1px solid #fed7aa !important;
+    border-radius: 8px !important;
+    color: #9a3412 !important;
+    padding: 0.45rem 0.7rem !important;
+}
+
+.results-cards-container .card-verification-pill.pill-notes {
+    background: #e6f0fa !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 8px !important;
+    color: #0b4f86 !important;
+    padding: 0.45rem 0.7rem !important;
+}
+
+.results-cards-container .card-verification-pill strong {
+    color: inherit !important;
+}
+
+.results-cards-container .card-action-btn {
+    position: relative !important;
+    overflow: hidden !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    max-height: none !important;
+    padding: 0.78rem 1rem !important;
+    justify-content: space-between !important;
+    border-radius: 10px !important;
+    border: 1px solid rgb(255 255 255 / 22%) !important;
+    box-shadow: 0 7px 14px rgb(11 37 69 / 12%), inset 0 1px 0 rgb(255 255 255 / 18%) !important;
+    transition: transform 180ms cubic-bezier(.23,1,.32,1), box-shadow 180ms ease, filter 180ms ease !important;
+}
+
+.results-cards-container .card-action-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 24%, rgb(255 255 255 / 24%) 48%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 520ms cubic-bezier(.23,1,.32,1);
+}
+
+.results-cards-container .card-action-btn .card-action-label,
+.results-cards-container .card-action-btn .card-action-arrow {
+    position: relative;
+    z-index: 1;
+}
+
+.results-cards-container .card-action-btn .card-action-arrow {
+    font-size: 1.15rem;
+    line-height: 1;
+    transition: transform 180ms cubic-bezier(.23,1,.32,1);
+}
+
+.results-cards-container .card-action-btn:hover:not(:disabled) {
+    filter: saturate(1.15) brightness(1.08);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 22px rgb(11 37 69 / 20%), inset 0 1px 0 rgb(255 255 255 / 24%) !important;
+}
+
+.results-cards-container .card-action-btn:hover:not(:disabled)::before {
+    transform: translateX(120%);
+}
+
+.results-cards-container .card-action-btn:hover:not(:disabled) .card-action-arrow {
+    transform: translateX(4px);
+}
+
+.results-cards-container .card-action-btn:active:not(:disabled) {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.results-cards-container .card-action-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.card-action-spinner {
+    animation: card-action-spin 850ms linear infinite;
+}
+
+@keyframes card-action-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 800px) {
+    .results-wrapper {
+        padding: 0.6rem 1rem 1.5rem !important;
+    }
+
+    .results-header-banner {
+        width: calc(100% + 2rem) !important;
+        margin-left: -1rem !important;
+        margin-right: -1rem !important;
+        margin-top: -0.6rem !important;
+    }
+}
+
+/* Slightly larger verification labels; numeric size remains unchanged. */
+.results-cards-container .card-verification-pill,
+.results-cards-container .card-verification-pill.pill-verified,
+.results-cards-container .card-verification-pill.pill-notes {
+    font-size: 1.04rem !important;
+}
+
+/* =====================================================
+   PAGE 9 FINAL ACTION ROW + STANDARD NUMERALS
+   ===================================================== */
+.p9-masthead-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+}
+
+.p9-back-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+    min-height: 40px !important;
+    padding: 0.6rem 0.95rem !important;
+    border: 1px solid #b9a878 !important;
+    border-radius: 9px !important;
+    color: #183b62 !important;
+    background: #fffdf7 !important;
+    box-shadow: 0 3px 9px rgb(16 45 85 / 8%), inset 0 1px 0 rgb(255 255 255 / 75%) !important;
+    font-family: 'Outfit', Arial, sans-serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 750 !important;
+    cursor: pointer !important;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease !important;
+}
+
+.p9-back-btn:hover {
+    color: #ffffff !important;
+    background: #183b62 !important;
+    border-color: #183b62 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 14px rgb(16 45 85 / 18%) !important;
+}
+
+.p9-back-btn:active {
+    color: #ffffff !important;
+    background: #0d2847 !important;
+    border-color: #0d2847 !important;
+    transform: translateY(1px) scale(0.98) !important;
+    box-shadow: inset 0 2px 5px rgb(0 0 0 / 18%) !important;
+}
+
+.p9-header-library-toggle {
+    display: inline-grid !important;
+    place-items: center !important;
+    flex: 0 0 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 9px !important;
+    border: 1px solid #b9a878 !important;
+    border-radius: 9px !important;
+    color: #ffffff !important;
+    background: #183b62 !important;
+    box-shadow: 0 4px 10px rgb(16 45 85 / 16%) !important;
+    cursor: pointer !important;
+    transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease !important;
+}
+
+.p9-header-library-toggle:hover {
+    background: #0d2847 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 7px 15px rgb(16 45 85 / 22%) !important;
+}
+
+.p9-header-library-toggle:active {
+    transform: translateY(1px) scale(0.96) !important;
+}
+
+.p9-header-library-toggle svg {
+    width: 21px !important;
+    height: 21px !important;
+}
+
+.p9-utility-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    margin-left: auto !important;
+}
+
+.p9-details .p9-library-top {
+    display: none !important;
+}
+
+/* Use clean, standard tabular numerals instead of curvy display numerals. */
+.p9-details .p9-verification-box h2,
+.p9-details .p9-score strong,
+.p9-details .p9-filter-row b,
+.p9-details .p9-statement-status,
+.p9-details .p9-comparison-count,
+.p9-details .p9-source-box small,
+.p9-details .p9-section-heading,
+.p9-details .p9-statement-copy,
+.p9-details .p9-library-item {
+    font-variant-numeric: tabular-nums !important;
+}
+
+.p9-details .p9-verification-box h2,
+.p9-details .p9-score strong,
+.p9-details .p9-filter-row b,
+.p9-details .p9-comparison-count,
+.p9-details .p9-source-box small {
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-style: normal !important;
+}
+
+@media (max-width: 720px) {
+    .p9-masthead-actions {
+        gap: 0.4rem !important;
+    }
+
+    .p9-back-btn {
+        padding-inline: 0.65rem !important;
+    }
+
+    .p9-back-btn span {
+        display: none;
+    }
+
+    .p9-utility-actions {
+        gap: 0.35rem !important;
+    }
+
+    .p9-action span {
+        display: none;
+    }
+}
+
+/* =====================================================
+   PAGE 9 FINAL ALIGNMENT + FILTER COUNT STATES
+   ===================================================== */
+.p9-masthead-actions {
+    justify-content: flex-start !important;
+}
+
+.p9-back-btn {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Strong, squared-off numerals for page 9. */
+.p9-details .p9-verification-box h2,
+.p9-details .p9-score strong,
+.p9-details .p9-filter-row b,
+.p9-details .p9-comparison-count,
+.p9-details .p9-source-box small {
+    font-family: 'Arial Black', Arial, Helvetica, sans-serif !important;
+    font-weight: 900 !important;
+    font-variant-numeric: tabular-nums lining-nums !important;
+    font-feature-settings: 'tnum' 1, 'lnum' 1 !important;
+    font-style: normal !important;
+}
+
+/* Every filter count is always a visible circular badge. */
+.p9-details .p9-filter-row button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.42rem !important;
+}
+
+.p9-details .p9-filter-row button b {
+    display: inline-grid !important;
+    place-items: center !important;
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    color: #183b62 !important;
+    background: #ffffff !important;
+    border: 1px solid #d5d9df !important;
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+    font-family: 'Arial Black', Arial, Helvetica, sans-serif !important;
+    font-weight: 900 !important;
+    font-variant-numeric: tabular-nums lining-nums !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="all"].p9-selected,
+.p9-details .p9-filter-row button[data-filter="all"]:active {
+    color: #ffffff !important;
+    background: #183b62 !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="all"].p9-selected b,
+.p9-details .p9-filter-row button[data-filter="all"]:active b {
+    color: #183b62 !important;
+    background: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="verified"].p9-selected,
+.p9-details .p9-filter-row button[data-filter="verified"]:active {
+    color: #0b6545 !important;
+    background: #e4f3eb !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="verified"].p9-selected b,
+.p9-details .p9-filter-row button[data-filter="verified"]:active b {
+    color: #ffffff !important;
+    background: #12845a !important;
+    border-color: #12845a !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="notes"].p9-selected,
+.p9-details .p9-filter-row button[data-filter="notes"]:active {
+    color: #2169a7 !important;
+    background: #e6f0fb !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="notes"].p9-selected b,
+.p9-details .p9-filter-row button[data-filter="notes"]:active b {
+    color: #ffffff !important;
+    background: #2879bd !important;
+    border-color: #2879bd !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="blocked"].p9-selected,
+.p9-details .p9-filter-row button[data-filter="blocked"]:active {
+    color: #781e25 !important;
+    background: #fae7e4 !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="blocked"].p9-selected b,
+.p9-details .p9-filter-row button[data-filter="blocked"]:active b {
+    color: #ffffff !important;
+    background: #a72d2d !important;
+    border-color: #a72d2d !important;
+}
+
+@media (max-width: 720px) {
+    .p9-masthead-actions {
+        justify-content: flex-start !important;
+    }
+}
+
+/* =====================================================
+   PAGE 9 FINAL BUTTON + STATUS POLISH
+   ===================================================== */
+@media (min-width: 721px) {
+    .p9-details .p9-masthead-actions {
+        margin-left: -1.75rem !important;
+        width: calc(100% + 1.75rem) !important;
+    }
+}
+
+/* Status labels keep their meaning even before a filter is pressed. */
+.p9-details .p9-filter-row button[data-filter="verified"] {
+    color: #12845a !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="notes"] {
+    color: #2879bd !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="blocked"] {
+    color: #a72d2d !important;
+}
+
+/* Clean status-colored circles; selected states become dark with white numerals. */
+.p9-details .p9-filter-row button[data-filter="verified"] b {
+    color: #12845a !important;
+    background: #cae9d7 !important;
+    border-color: #9dd0b3 !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="notes"] b {
+    color: #2879bd !important;
+    background: #dbeafa !important;
+    border-color: #a9cbed !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="blocked"] b {
+    color: #a72d2d !important;
+    background: #f3d1cd !important;
+    border-color: #dfa39d !important;
+}
+
+/* Compare with Source: clear call-to-action with sheen, lift, and arrow motion. */
+.p9-details .p9-statement-status button[data-compare] {
+    position: relative !important;
+    overflow: hidden !important;
+    justify-content: center !important;
+    min-width: 156px !important;
+    min-height: 36px !important;
+    padding: 0.55rem 0.75rem !important;
+    border: 1px solid #78b99a !important;
+    border-radius: 9px !important;
+    color: #075c40 !important;
+    background: linear-gradient(135deg, #e9f8ee 0%, #ccebdc 100%) !important;
+    box-shadow: 0 5px 12px rgb(11 101 69 / 14%), inset 0 1px 0 rgb(255 255 255 / 70%) !important;
+    font-size: 0.72rem !important;
+    font-weight: 850 !important;
+    transition: transform 180ms cubic-bezier(.23,1,.32,1), box-shadow 180ms ease, filter 180ms ease !important;
+}
+
+.p9-details .p9-statement-status button[data-compare]::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 25%, rgb(255 255 255 / 70%) 48%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 520ms cubic-bezier(.23,1,.32,1);
+}
+
+.p9-details .p9-statement-status button[data-compare] svg,
+.p9-details .p9-statement-status button[data-compare] {
+    z-index: 1;
+}
+
+.p9-details .p9-statement-status button[data-compare]:hover {
+    filter: saturate(1.1) brightness(1.04);
+    transform: translateY(-2px);
+    box-shadow: 0 9px 17px rgb(11 101 69 / 22%), inset 0 1px 0 rgb(255 255 255 / 80%) !important;
+}
+
+.p9-details .p9-statement-status button[data-compare]:hover::before {
+    transform: translateX(120%);
+}
+
+.p9-details .p9-statement-status button[data-compare]:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: inset 0 2px 5px rgb(11 101 69 / 18%) !important;
+}
+
+.p9-details .p9-statement.p9-notes .p9-statement-status button[data-compare] {
+    border-color: #8bb9e0 !important;
+    color: #155c93 !important;
+    background: linear-gradient(135deg, #eef6ff 0%, #d7e9fa 100%) !important;
+}
+
+.p9-details .p9-statement.p9-blocked .p9-statement-status button[data-compare] {
+    border-color: #d4938b !important;
+    color: #8e2929 !important;
+    background: linear-gradient(135deg, #fff0ee 0%, #f7d8d4 100%) !important;
+}
+
+/* Previous / Next sentence controls become real navigation buttons. */
+.p9-details .p9-comparison-controls {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.65rem !important;
+    padding: 14px 0 2px !important;
+}
+
+.p9-details .p9-comparison-controls button {
+    position: relative !important;
+    overflow: hidden !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.42rem !important;
+    min-height: 36px !important;
+    padding: 0.52rem 0.7rem !important;
+    border: 1px solid #c9b77e !important;
+    border-radius: 9px !important;
+    color: #183b62 !important;
+    background: #fffdf7 !important;
+    box-shadow: 0 4px 10px rgb(16 45 85 / 8%) !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    transition: transform 180ms cubic-bezier(.23,1,.32,1), color 180ms ease, background 180ms ease, box-shadow 180ms ease !important;
+}
+
+.p9-details .p9-comparison-controls button:hover {
+    color: #ffffff !important;
+    background: #183b62 !important;
+    border-color: #183b62 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 15px rgb(16 45 85 / 18%) !important;
+}
+
+.p9-details .p9-comparison-controls button:active {
+    transform: translateY(0) scale(0.96) !important;
+    box-shadow: inset 0 2px 5px rgb(0 0 0 / 18%) !important;
+}
+
+.p9-details .p9-comparison-controls button svg {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+/* Selected status circles: dark fill with clean white numerals. */
+.p9-details .p9-filter-row button[data-filter="verified"].p9-selected b {
+    color: #ffffff !important;
+    background: #0b6545 !important;
+    border-color: #0b6545 !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="notes"].p9-selected b {
+    color: #ffffff !important;
+    background: #2169a7 !important;
+    border-color: #2169a7 !important;
+}
+
+.p9-details .p9-filter-row button[data-filter="blocked"].p9-selected b {
+    color: #ffffff !important;
+    background: #781e25 !important;
+    border-color: #781e25 !important;
+}
+
+/* =====================================================
+   PAGE 9 FINAL LABEL + SIDEBAR + NOTES COMPARISON POLISH
+   ===================================================== */
+.p9-details .p9-header-library-toggle {
+    color: #183b62 !important;
+    background: #fffdf7 !important;
+    border-color: #b9a878 !important;
+    box-shadow: 0 3px 9px rgb(16 45 85 / 8%), inset 0 1px 0 rgb(255 255 255 / 75%) !important;
+}
+
+.p9-details .p9-header-library-toggle:hover,
+.p9-details .p9-header-library-toggle.p9-sidebar-open {
+    color: #ffffff !important;
+    background: #183b62 !important;
+    border-color: #183b62 !important;
+    box-shadow: 0 6px 14px rgb(16 45 85 / 18%) !important;
+}
+
+.p9-details .p9-header-library-toggle:active {
+    color: #ffffff !important;
+    background: #0d2847 !important;
+}
+
+/* Notes comparisons alone receive the light-blue workspace treatment. */
+.p9-details .p9-right-panel.p9-notes-comparing {
+    background: #f1f7ff !important;
+    border-color: #b9d4ee !important;
+    box-shadow: 0 14px 30px rgb(40 121 189 / 12%) !important;
+}
+
+.p9-details .p9-right-panel.p9-notes-comparing .p9-claim-box {
+    background: #e7f2ff !important;
+    border-color: #b7d4ee !important;
+}
+
+.p9-details .p9-right-panel.p9-notes-comparing .p9-source-box {
+    background: #edf6ff !important;
+    border-color: #c2dcef !important;
+}
+
+.p9-details .p9-right-panel.p9-notes-comparing .p9-comparison-count b.p9-notes {
+    color: #ffffff !important;
+    background: #2169a7 !important;
+}
+
+/* Notes comparison: only Generated Claim receives the light-blue emphasis. */
+.p9-details .p9-right-panel.p9-notes-comparing {
+    background: rgb(255 253 247 / 94%) !important;
+    border-color: #ded7c7 !important;
+    box-shadow: 0 14px 30px rgb(16 45 85 / 7%) !important;
+}
+
+.p9-details .p9-right-panel.p9-notes-comparing .p9-claim-box {
+    background: #e7f2ff !important;
+    border-color: #9fc7e8 !important;
+    box-shadow: 0 6px 14px rgb(40 121 189 / 12%) !important;
+}
+
+.p9-details .p9-right-panel.p9-notes-comparing .p9-source-box {
+    background: #fbf4df !important;
+    border-color: #dfcf9d !important;
+    box-shadow: none !important;
+}
