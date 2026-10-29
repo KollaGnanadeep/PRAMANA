@@ -1,4 +1,4 @@
-﻿# PRAMANA
+﻿PRAMANA: Evidence-verified retrieval of Indian Supreme Court judgments.
 
 PRAMANA is a legal-evidence retrieval and claim-verification prototype designed to help users explore Indian legal materials with traceable supporting sources. Its pipeline prepares legal documents, splits them into chunks, generates embeddings, retrieves relevant passages from ChromaDB, and applies verification gates before evidence-backed content is presented through a React frontend and FastAPI backend. Supabase stores application records and verified legal evidence; ChromaDB serves as the vector-retrieval store. PRAMANA is a research prototype, not a substitute for a qualified lawyer or authoritative legal advice.
 
