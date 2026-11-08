@@ -39,7 +39,8 @@ The repository contains the application source and pipeline scripts. Local corpo
 
 Typical files include:
 
-- `api.py`, `app.py` â€” backend/application entry points.
+- `api.py` — FastAPI backend entry point.
+- `public_host.py` — production server entry point serving the API and frontend.
 - `frontend/` â€” React/Vite source.
 - `step*.py`, `v*.py`, and `scripts/` â€” processing, retrieval, evaluation, and verification scripts.
 - `requirements.txt` â€” Python dependencies.
