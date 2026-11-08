@@ -29,7 +29,4 @@ high_court_files.txt
 # Logs and temporary files
 *.log
 requirements.utf16.bak
-==.txt
-tatus --short
-# Large demo video kept locally
-frontend/public/assets/revese-video.mp4
+# Large demo video tracked with Git LFS
