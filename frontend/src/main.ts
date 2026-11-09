@@ -171,27 +171,6 @@ function crossfade(out: HTMLElement, inc: HTMLElement, ms: number): Promise<void
 }
 
 // ─────────────────────────────────────────────────────────
-// Video helpers
-// ─────────────────────────────────────────────────────────
-function waitVideoReady(v: HTMLVideoElement): Promise<void> {
-    return new Promise<void>((resolve) => {
-        if (v.readyState >= 3) { resolve(); return; }
-        const fn = () => { v.removeEventListener('canplay', fn); v.removeEventListener('canplaythrough', fn); resolve(); };
-        v.addEventListener('canplay', fn);
-        v.addEventListener('canplaythrough', fn);
-        setTimeout(resolve, 5000);
-    });
-}
-
-function waitVideoEnd(v: HTMLVideoElement): Promise<void> {
-    return new Promise<void>((resolve) => {
-        if (v.ended) { resolve(); return; }
-        const fn = () => { v.removeEventListener('ended', fn); resolve(); };
-        v.addEventListener('ended', fn);
-    });
-}
-
-// ─────────────────────────────────────────────────────────
 // Position search hit areas
 // ─────────────────────────────────────────────────────────
 function positionHitAreas(
@@ -999,33 +978,85 @@ async function runCinematicSequence() {
     preloadImg(ASSET.image2);
     PROCESSING_ASSETS.forEach(src => preloadImg(src));
 
-    // Image 1 visible
     frame1.classList.add('visible');
     frame1.style.opacity = '1';
+
     video.load();
-    await waitVideoReady(video);
     await sleep(T.image1Hold);
-    const pp = video.play();
-    if (pp !== undefined) {
-        pp.catch(() => { video.muted = true; video.play().catch(() => { }); });
+
+    const videoReady = await new Promise<boolean>((resolve) => {
+        if (video.readyState >= 3) {
+            resolve(true);
+            return;
+        }
+
+        const finish = (ready: boolean) => {
+            clearTimeout(timer);
+            video.removeEventListener('canplay', onReady);
+            video.removeEventListener('error', onError);
+            resolve(ready);
+        };
+
+        const onReady = () => finish(true);
+        const onError = () => finish(false);
+        const timer = setTimeout(() => finish(false), 5000);
+
+        video.addEventListener('canplay', onReady, { once: true });
+        video.addEventListener('error', onError, { once: true });
+    });
+
+    let videoStarted = false;
+
+    if (videoReady) {
+        try {
+            await video.play();
+            videoStarted = true;
+        } catch (error) {
+            console.warn('[PRAMANA] Video playback failed; skipping video.', error);
+        }
+    } else {
+        console.warn('[PRAMANA] Video unavailable; skipping video.');
     }
 
-    // Image1 → Video
-    await crossfade(frame1, frame2, fade(T.image1ToVideo));
+    if (videoStarted) {
+        await crossfade(frame1, frame2, fade(T.image1ToVideo));
 
-    // Video → Image2 (search screen)
-    await waitVideoEnd(video);
-    await sleep(T.videoEndHold);
-    await crossfade(frame2, frame3, fade(T.videoToImage2));
-    console.log('[PRAMANA] Step 1 complete — search screen active.');
+        const videoEnded = await new Promise<boolean>((resolve) => {
+            const finish = (ended: boolean) => {
+                clearTimeout(timer);
+                video.removeEventListener('ended', onEnded);
+                video.removeEventListener('error', onError);
+                resolve(ended);
+            };
 
-    // Activate search screen with continuous handler
+            const onEnded = () => finish(true);
+            const onError = () => finish(false);
+            const timer = setTimeout(() => finish(false), 180000);
+
+            video.addEventListener('ended', onEnded, { once: true });
+            video.addEventListener('error', onError, { once: true });
+
+            if (video.ended) finish(true);
+        });
+
+        if (videoEnded) {
+            await sleep(T.videoEndHold);
+        } else {
+            console.warn('[PRAMANA] Video interrupted; moving to search screen.');
+        }
+
+        await crossfade(frame2, frame3, fade(T.videoToImage2));
+    } else {
+        await crossfade(frame1, frame3, fade(T.videoToImage2));
+    }
+
+    console.log('[PRAMANA] Search screen active.');
+
     activateSearchScreen(frame3, (query) => {
         executeSearch(query, procContainer, processingFrames, statusOverlay);
     });
 }
 
-// ─────────────────────────────────────────────────────────
 // Bootstrap
 // ─────────────────────────────────────────────────────────
 if (document.readyState === 'loading') {

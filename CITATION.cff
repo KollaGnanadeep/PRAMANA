@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. Project guidance: K. David Raju."
+title: "PRAMANA: Evidence-Verified Retrieval and Claim Verification for Indian Supreme Court Judgments"
+type: software
+authors:
+  - family-names: Kolla
+    given-names: Gnanadeep
+repository-code: "https://github.com/KollaGnanadeep/PRAMANA"
+license: MIT
+abstract: "Research prototype for retrieving Indian Supreme Court judgments on money-lending and cheque-bounce disputes and verifying generated summary claims against source text. Not legal advice."
+keywords:
+  - legal NLP
+  - retrieval-augmented generation
+  - claim verification
+  - natural language inference
+  - Indian law
