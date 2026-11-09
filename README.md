@@ -333,7 +333,7 @@ The demonstration video will be added as a GitHub Release asset.
 
 ## 17. Citation
 
-A citation file, `CITATION.cff`, should be used for repository citation once included in the release.
+The repository includes `CITATION.cff` for citation metadata.
 
 ## 18. Disclaimer
 
